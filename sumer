@@ -1,0 +1,114 @@
+use std::collections::HashMap;
+use std::sync::Mutex;
+use rand::Rng;
+use sha2::Sha256;
+
+// بنية الكتلة
+struct Block {
+    timestamp: u64,
+    previous_hash: [u8; 32],
+    merkle_root: [u8; 32],
+    transactions: Vec<Transaction>,
+}
+
+// بنية المعاملة
+struct Transaction {
+    sender: String,
+    recipient: String,
+    amount: u64,
+    signature: Option<[u8; 64]>, // حقل التوقيع
+}
+
+// بنية المحفظة
+struct Wallet {
+    address: String,
+    private_key: [u8; 32],
+    public_key: [u8; 32],
+    balance: u64,
+}
+
+// وظيفة لحساب تجزئة النص
+fn hash(data: &[u8]) -> [u8; 32] {
+    let mut hasher = Sha256::new();
+    hasher.update(data);
+    hasher.finalize().into()
+}
+
+// وظيفة لحساب تجزئة شجرة Merkle
+fn get_merkle_root(transactions: &[Transaction]) -> [u8; 32] {
+    // ... (سيتم تنفيذ هذه الوظيفة لاحقًا)
+}
+
+// وظيفة للحصول على الطابع الزمني الحالي
+fn get_timestamp() -> u64 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).as_secs()
+}
+
+// وظيفة إنشاء كتلة جديدة
+fn new_block(previous_hash: [u8; 32], transactions: Vec<Transaction>) -> Block {
+    Block {
+        timestamp: get_timestamp(),
+        previous_hash,
+        merkle_root: get_merkle_root(&transactions),
+        transactions,
+    }
+}
+
+// وظيفة إضافة معاملة إلى كتلة
+fn add_transaction(block: &mut Block, transaction: Transaction) {
+    // 1. تحديث رصيد المرسل
+    let sender_wallet = get_wallet_by_address(&block.transactions, &transaction.sender);
+    if let Some(mut sender_wallet) = sender_wallet {
+        if sender_wallet.balance >= transaction.amount {
+            sender_wallet.balance -= transaction.amount;
+        } else {
+            // رفض المعاملة بسبب رصيد المرسل غير الكافي
+            return;
+        }
+    } else {
+        // رفض المعاملة بسبب عدم وجود محفظة للمرسل
+        return;
+    }
+
+    // 2. تحديث رصيد المستقبل
+    let recipient_wallet = get_wallet_by_address(&block.transactions, &transaction.recipient);
+    if let Some(mut recipient_wallet) = recipient_wallet {
+        recipient_wallet.balance += transaction.amount;
+    } else {
+        // إنشاء محفظة جديدة للمستقبل إذا لم تكن موجودة
+        let new_recipient_wallet = new_wallet(&transaction.recipient);
+        block.transactions.push(new_recipient_wallet);
+    }
+
+    // 3. إضافة المعاملة إلى قائمة معاملات الكتلة
+    block.transactions.push(transaction);
+}
+
+// وظيفة إنشاء معاملة جديدة
+fn new_transaction(sender: String, recipient: String, amount: u64) -> Transaction {
+    Transaction {
+        sender,
+        recipient,
+        amount,
+        signature: None, // سيتم إضافة التوقيع لاحقًا
+    }
+}
+
+// وظيفة إنشاء محفظة جديدة
+fn new_wallet(address: &str) -> Wallet {
+    let mut private_key = [0; 32];
+    rand::thread_rng().fill(&mut private_key);
+
+    let public_key = get_public_key(&private_key); // (سيتم تنفيذ هذه الوظيفة لاحقًا)
+
+    Wallet {
+        address: address.to_string(),
+        private_key,
+        public_key,
+        balance: 0,
+    }
+}
+
+// وظيفة البحث عن محفظة بعنوان محدد
+fn get_wallet_by_address(transactions: &[Transaction], address: &str) -> Option<&mut Wallet> {
+    for wallet in transactions.iter_mut
